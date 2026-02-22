@@ -1,7 +1,7 @@
 """Smart DJ transition — selects tight (chorus→chorus) or loose (chorus→verse→chorus)
 based on BPM closeness and harmonic (key) compatibility.
 
-Tight transition  [BPM within ±5 AND keys compatible]:
+Tight transition  [BPM within ±5 OR (keys compatible AND bpm within +- 15)]:
     Song 1 plays as a continuous strip from Verse 1 start → transition point.
     Phase A (1 phrase = 8 bars = 32 beats at Song 1 BPM):
         Song 1 stems: lows fade 1→0, mids + highs held at full
@@ -47,7 +47,8 @@ from get_verse import find_verse
 # Constants
 # ---------------------------------------------------------------------------
 
-BPM_TIGHT_THRESHOLD = 5   # |bpm1 - bpm2| ≤ this → eligible for tight transition
+BPM_TIGHT_THRESHOLD = 5    # |bpm1 - bpm2| ≤ this → eligible for tight (BPM-only path)
+BPM_LOOSE_THRESHOLD = 15   # |bpm1 - bpm2| ≤ this AND keys compatible → also tight
 
 # Enharmonic normalisation: flatten → sharp equivalent
 _ENHARMONICS: dict[str, str] = {
@@ -173,14 +174,36 @@ def _split_stems(
     Stems are NOT normalised so that low + mid + high ≈ original audio.
     Each stem has shape (2, N), dtype float32.
     """
-    os.makedirs(demucs_out_dir, exist_ok=True)
-    subprocess.run(
-        ["python", "-m", "demucs", "--out", demucs_out_dir, filepath],
-        check=True,
-    )
+    song_name   = os.path.splitext(os.path.basename(filepath))[0]
+    _STEM_FILES = ("bass.wav", "drums.wav", "vocals.wav", "other.wav")
 
-    song_name = os.path.splitext(os.path.basename(filepath))[0]
-    stem_dir  = os.path.join(demucs_out_dir, "htdemucs", song_name)
+    # Search demucs_out_dir and any sibling slot directories for existing stems
+    # (the same song may have been separated in a previous run under a different slot).
+    stems_parent = os.path.dirname(demucs_out_dir)
+    candidates   = [demucs_out_dir]
+    if os.path.isdir(stems_parent):
+        candidates += [
+            os.path.join(stems_parent, d)
+            for d in os.listdir(stems_parent)
+            if os.path.isdir(os.path.join(stems_parent, d))
+            and os.path.join(stems_parent, d) != demucs_out_dir
+        ]
+
+    stem_dir = None
+    for cand in candidates:
+        cand_stem_dir = os.path.join(cand, "htdemucs", song_name)
+        if all(os.path.exists(os.path.join(cand_stem_dir, f)) for f in _STEM_FILES):
+            stem_dir = cand_stem_dir
+            print(f"  Stems already exist for '{song_name}' in '{cand}'; skipping DEMUCS.")
+            break
+
+    if stem_dir is None:
+        stem_dir = os.path.join(demucs_out_dir, "htdemucs", song_name)
+        os.makedirs(demucs_out_dir, exist_ok=True)
+        subprocess.run(
+            ["python", "-m", "demucs", "--out", demucs_out_dir, filepath],
+            check=True,
+        )
 
     bass,  sr = librosa.load(os.path.join(stem_dir, "bass.wav"),   sr=None, mono=False)
     drums, _  = librosa.load(os.path.join(stem_dir, "drums.wav"),  sr=None, mono=False)
@@ -400,9 +423,10 @@ def make_transition(
     # ------------------------------------------------------------------ #
     # 2. Decide transition type                                            #
     # ------------------------------------------------------------------ #
-    bpm_ok  = abs(bpm1 - bpm2) <= BPM_TIGHT_THRESHOLD
-    key_ok  = keys_compatible(key1, key2)
-    tight   = bpm_ok and key_ok
+    bpm_ok    = abs(bpm1 - bpm2) <= BPM_TIGHT_THRESHOLD
+    bpm_loose = abs(bpm1 - bpm2) <= BPM_LOOSE_THRESHOLD
+    key_ok    = keys_compatible(key1, key2)
+    tight     = bpm_ok or (key_ok and bpm_loose)
 
     def _cam(c: tuple[int, str]) -> str:
         return f"{c[0]}{c[1]}"
@@ -411,7 +435,7 @@ def make_transition(
         f"\nSong 1: {bpm1:.1f} BPM  key {_cam(key1)}\n"
         f"Song 2: {bpm2:.1f} BPM  key {_cam(key2)}\n"
         f"BPM within ±{BPM_TIGHT_THRESHOLD}: {bpm_ok}  |  "
-        f"Keys compatible: {key_ok}\n"
+        f"Keys compatible: {key_ok}  |  BPM within ±{BPM_LOOSE_THRESHOLD}: {bpm_loose}\n"
         f"→ {'TIGHT  (chorus → chorus, hard cut)' if tight else 'LOOSE  (chorus → verse → chorus, 2-phrase fade)'}"
     )
 
