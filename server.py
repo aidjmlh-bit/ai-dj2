@@ -24,6 +24,7 @@ from pathlib import Path
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 
+
 # ── Path setup ─────────────────────────────────────────────────────
 # Everything lives in the root of ai-dj2/
 ROOT = os.path.dirname(os.path.abspath(__file__))
