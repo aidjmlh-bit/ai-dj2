@@ -1,26 +1,4 @@
-"""DJ AI — Static Visualizer Generator
-
-Generates a self-contained HTML file that:
-  1. Lets you drop two WAV files
-  2. Connects to server.py for BPM analysis + mixing
-  3. Shows beat-reactive bass/vocals/drums pulses
-  4. Plays the finished mix with spinning vinyls
-
-Usage:
-    python generate_viz.py              → generates dj_ai_viz.html in current folder
-    python generate_viz.py output.html  → custom output path
-
-Then open the HTML in Chrome and make sure server.py is running.
-"""
-
-import os
-import sys
-
-OUTPUT_DIR  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "visualizer_htmls")
-OUTPUT_PATH = sys.argv[1] if len(sys.argv) > 1 else os.path.join(OUTPUT_DIR, "dj_ai_viz.html")
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-HTML = r"""<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -741,15 +719,3 @@ resizeCanvases();
 </script>
 </body>
 </html>
-"""
-
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-with open(OUTPUT_PATH, 'w', encoding='utf-8') as f:
-    f.write(HTML)
-
-print(f"\n✓ Visualizer generated → {OUTPUT_PATH}")
-print("  1. Run: python server.py")
-print("  2. Open the HTML in Chrome")
-print("  3. Drop two WAV files → the page title and filename will update to match")
-print("  4. Press MIX NOW → loading screen while demucs runs")
-print("  5. Press PLAY → vinyls spin, curves react to the beat\n")
