@@ -45,6 +45,7 @@ from many_transitions import (
     _fmt,
     _resample_stems,
     _sec_to_samp,
+    _snap_to_beat,
     _snap_to_phrase,
     _stretch_stem,
     get_key,
@@ -486,6 +487,10 @@ def build_loop_mix(
     y1, sr1 = librosa.load(song1_path, mono=False, sr=None)
     y1 = _ensure_stereo(y1)
 
+    print("Detecting beats for Song 1…")
+    _, _bf1     = librosa.beat.beat_track(y=y1[0], sr=sr1, hop_length=HOP_LENGTH)
+    beat_times1 = librosa.frames_to_time(_bf1, sr=sr1, hop_length=HOP_LENGTH)
+
     # ------------------------------------------------------------------ #
     # 6. DEMUCS stem separation                                           #
     # ------------------------------------------------------------------ #
@@ -500,6 +505,12 @@ def build_loop_mix(
     bass2r, drums2r, vox2r, other2r, sr2 = _split_stems_4(
         song2_path, os.path.join(stems_root, "song2")
     )
+
+    print("Detecting beats for Song 2…")
+    _y2_mono, _sr2_raw = librosa.load(song2_path, mono=True, sr=None)
+    _, _bf2            = librosa.beat.beat_track(y=_y2_mono, sr=_sr2_raw, hop_length=HOP_LENGTH)
+    beat_times2        = librosa.frames_to_time(_bf2, sr=_sr2_raw, hop_length=HOP_LENGTH)
+    del _y2_mono
 
     # ------------------------------------------------------------------ #
     # 7. BPM matching — speed up Song 2 only                             #
@@ -528,17 +539,28 @@ def build_loop_mix(
     bar_samp    = _sec_to_samp(bar_dur,    sr1)
     phrase_samp = _sec_to_samp(phrase_dur, sr1)
 
-    s1_v1_start = _sec_to_samp(verse1_ts[0][0],  sr1)
-    s1_c1_start = _sec_to_samp(chorus1_ts[0][0], sr1)
-    s1_c1_end   = _sec_to_samp(chorus1_ts[0][1], sr1)
+    # Snap Song 1 boundaries to nearest detected beat
+    _s1_v1  = _snap_to_beat(verse1_ts[0][0],  beat_times1)
+    _s1_c1s = _snap_to_beat(chorus1_ts[0][0], beat_times1)
+    _s1_c1e = _snap_to_beat(chorus1_ts[0][1], beat_times1)
+
+    # Snap Song 2 boundaries in original time domain, then apply stretch_rate
+    _s2_c1s  = _snap_to_beat(chorus2_ts[0][0],  beat_times2)
+    _s2_c1e  = _snap_to_beat(chorus2_ts[0][1],  beat_times2)
+    _s2_vach = _snap_to_beat(verse_after_ch[0], beat_times2)
+    _s2_v2e  = _snap_to_beat(verse2_ts[1][1],   beat_times2)
+
+    s1_v1_start = _sec_to_samp(_s1_v1,  sr1)
+    s1_c1_start = _sec_to_samp(_s1_c1s, sr1)
+    s1_c1_end   = _sec_to_samp(_s1_c1e, sr1)
 
     # Song 2 in stretched domain
-    s2_c1_start     = _sec_to_samp(chorus2_ts[0][0] / stretch_rate, sr1)
-    s2_c1_end       = _sec_to_samp(chorus2_ts[0][1] / stretch_rate, sr1)
-    d2_chorus_samp  = s2_c1_end - s2_c1_start
+    s2_c1_start        = _sec_to_samp(_s2_c1s  / stretch_rate, sr1)
+    s2_c1_end          = _sec_to_samp(_s2_c1e  / stretch_rate, sr1)
+    d2_chorus_samp     = s2_c1_end - s2_c1_start
 
-    s2_verse_ach_start = _sec_to_samp(verse_after_ch[0] / stretch_rate, sr1)
-    s2_v2_end          = _sec_to_samp(verse2_ts[1][1]   / stretch_rate, sr1)
+    s2_verse_ach_start = _sec_to_samp(_s2_vach / stretch_rate, sr1)
+    s2_v2_end          = _sec_to_samp(_s2_v2e  / stretch_rate, sr1)
 
     print(
         f"\nPhrase       : {phrase_dur:.2f}s\n"
