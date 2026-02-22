@@ -15,7 +15,7 @@ _root = os.path.dirname(_here)
 sys.path.insert(0, _root)   # for get_bpm
 sys.path.insert(0, _here)   # for get_chorus (same directory)
 
-from get_bpm import get_bpm
+from bpm import get_bpm
 from get_chorus import find_chorus
 
 

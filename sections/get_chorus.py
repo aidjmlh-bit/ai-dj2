@@ -11,7 +11,7 @@ import soundfile as sf
 
 # Allow running as a script from any working directory.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from get_bpm import get_bpm
+from bpm import get_bpm
 
 
 def find_chorus(filepath: str) -> list[tuple[float, float]]:
