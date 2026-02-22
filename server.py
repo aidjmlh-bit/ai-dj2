@@ -30,7 +30,6 @@ from bpm     import get_bpm
 from get_key import detect_key
 from camelot import camelot_compatibility, get_transition_advice
 
-
 # ── Section detection ──────────────────────────────────────────────
 try:
     from get_chorus import find_chorus
