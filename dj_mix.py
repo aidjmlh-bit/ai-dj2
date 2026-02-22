@@ -3,7 +3,7 @@
 Given two WAV files, automatically selects the best mix strategy and produces
 a single output WAV in output/mixes/:
 
-  1. LOOP MIX   — BPM within ±5  AND  keys compatible
+  1. LOOP MIX   — BPM within ±10 AND  keys compatible
   2. TIGHT      — BPM within ±5  OR  (keys compatible AND BPM within ±15)
   3. LOOSE      — fallback (always succeeds)
 
@@ -109,6 +109,7 @@ def dj_mix(song1_path: str, song2_path: str, output_dir: str = "output") -> str:
     key2 = get_key(song2_path)
 
     bpm_diff  = abs(bpm1 - bpm2)
+    bpm_loop  = bpm_diff <= 10
     bpm_ok    = bpm_diff <= BPM_TIGHT_THRESHOLD
     bpm_loose = bpm_diff <= BPM_LOOSE_THRESHOLD
     key_ok    = keys_compatible(key1, key2)
@@ -123,7 +124,7 @@ def dj_mix(song1_path: str, song2_path: str, output_dir: str = "output") -> str:
     )
 
     # ── Pick mode ────────────────────────────────────────────────────────────
-    loop_eligible  = bpm_ok and key_ok
+    loop_eligible  = bpm_loop and key_ok
     tight_eligible = bpm_ok or (key_ok and bpm_loose)
 
     if loop_eligible:
