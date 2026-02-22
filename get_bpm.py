@@ -1,16 +1,15 @@
 """BPM estimation from WAV audio files."""
 
 import os
-import numpy as np
-import librosa
+import essentia.standard as es
 
 
 def get_bpm(filepath: str) -> float:
     """Estimate the global BPM of a WAV audio file.
 
-    Uses librosa's onset-strength-based beat tracking to estimate tempo.
-    The onset envelope is computed with a median aggregator for robustness
-    against transient noise, then fed into a dynamic-programming beat tracker.
+    Uses Essentia's RhythmExtractor2013 with the multifeature method,
+    which combines several beat-tracking algorithms for higher accuracy
+    than onset-envelope approaches, especially on electronic music.
 
     Args:
         filepath: Absolute or relative path to a ``.wav`` audio file.
@@ -34,32 +33,19 @@ def get_bpm(filepath: str) -> float:
         raise FileNotFoundError(f"Audio file not found: {filepath!r}")
 
     try:
-        # Load as mono at the file's native sample rate so beat tracking
-        # operates on the full stereo mix without resampling artifacts.
-        y, sr = librosa.load(filepath, mono=True, sr=None)
+        audio = es.MonoLoader(filename=filepath)()
     except Exception as exc:
         raise ValueError(
             f"Failed to decode audio file {filepath!r}: {exc}"
         ) from exc
 
-    if y.size == 0:
+    if len(audio) == 0:
         raise ValueError(f"Audio file contains no samples: {filepath!r}")
 
-    # Onset strength envelope with median aggregation suppresses spurious
-    # peaks from noise, giving a cleaner signal to the beat tracker.
-    onset_env = librosa.onset.onset_strength(y=y, sr=sr, aggregate=np.median)
+    rhythm_extractor = es.RhythmExtractor2013(method="multifeature")
+    bpm, _, _, _, _ = rhythm_extractor(audio)
 
-    # Dynamic-programming beat tracker. start_bpm=120 is a weak prior;
-    # the tracker will deviate substantially when the evidence is clear.
-    tempo, _ = librosa.beat.beat_track(
-        onset_envelope=onset_env,
-        sr=sr,
-        start_bpm=120.0,
-        units="frames",
-    )
-
-    # librosa >=0.10 may return a 1-element ndarray instead of a scalar.
-    bpm = round(float(np.atleast_1d(tempo)[0]), 2)
+    bpm = round(float(bpm), 2)
 
     if not (60.0 <= bpm <= 200.0):
         raise ValueError(
