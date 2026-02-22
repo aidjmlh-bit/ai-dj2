@@ -162,6 +162,17 @@ def _snap_to_phrase(start_sec: float, phrase_sec: float) -> float:
     return math.ceil(start_sec / phrase_sec) * phrase_sec
 
 
+def _snap_to_beat(sec: float, beat_times: np.ndarray) -> float:
+    """Return the beat time in beat_times closest to sec.
+
+    Falls back to sec unchanged if beat_times is empty.
+    """
+    if len(beat_times) == 0:
+        return sec
+    idx = int(np.argmin(np.abs(beat_times - sec)))
+    return float(beat_times[idx])
+
+
 def _sec_to_samp(sec: float, sr: int) -> int:
     return int(round(sec * sr))
 
