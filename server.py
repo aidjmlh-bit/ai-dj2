@@ -18,19 +18,16 @@ from pathlib import Path
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 
-# ── Path setup ─────────────────────────────────────────────────────
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "get_key"))
 sys.path.insert(0, os.path.join(ROOT, "sections"))
 sys.path.insert(0, os.path.join(ROOT, "EQtransition"))
 
-# ── Core analysis modules ──────────────────────────────────────────
 from bpm     import get_bpm
 from get_key import detect_key
 from camelot import camelot_compatibility, get_transition_advice
 
-# ── Section detection ──────────────────────────────────────────────
 try:
     from get_chorus import find_chorus
     HAS_CHORUS = True
@@ -45,7 +42,6 @@ except Exception as e:
     print(f"  [warn] get_verse: {e}")
     HAS_VERSE = False
 
-# ── Mix engines (priority order) ──────────────────────────────────
 try:
     from many_transitions import make_transition
     HAS_MANY = True
@@ -67,7 +63,6 @@ except Exception as e:
     print(f"  [warn] eq_transition: {e}")
     HAS_EQ = False
 
-# ── Flask app ──────────────────────────────────────────────────────
 app = Flask(__name__)
 CORS(app)
 
@@ -77,7 +72,6 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
-# ── /health ────────────────────────────────────────────────────────
 @app.route('/health')
 def health():
     return jsonify({
@@ -94,7 +88,6 @@ def health():
     })
 
 
-# ── /analyze ───────────────────────────────────────────────────────
 @app.route('/analyze', methods=['POST'])
 def analyze():
     """
@@ -154,7 +147,6 @@ def analyze():
     return jsonify(result)
 
 
-# ── /compatibility ─────────────────────────────────────────────────
 @app.route('/compatibility', methods=['POST'])
 def compatibility():
     """
@@ -199,7 +191,6 @@ def compatibility():
         return jsonify({"error": str(e)}), 500
 
 
-# ── /mix ───────────────────────────────────────────────────────────
 @app.route('/mix', methods=['POST'])
 def mix():
     """
@@ -269,7 +260,6 @@ def mix():
         return jsonify({"error": str(e), "engine_attempted": engine_used}), 500
 
 
-# ── /stream ────────────────────────────────────────────────────────
 @app.route('/stream/<folder>/<filename>')
 def stream(folder, filename):
     """Stream a WAV for browser playback."""
@@ -280,7 +270,6 @@ def stream(folder, filename):
     return send_file(path, mimetype='audio/wav', conditional=True)
 
 
-# ── /download ──────────────────────────────────────────────────────
 @app.route('/download/<filename>')
 def download(filename):
     path = os.path.join(OUTPUT_DIR, filename)
@@ -289,7 +278,6 @@ def download(filename):
     return send_file(path, as_attachment=True)
 
 
-# ── Main ───────────────────────────────────────────────────────────
 if __name__ == '__main__':
     print("\n" + "="*54)
     print("  DJ AI — FLASK SERVER")
