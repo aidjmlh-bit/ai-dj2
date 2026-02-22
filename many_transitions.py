@@ -296,15 +296,20 @@ def _build_tight_fallback(
     phrase_samples: int,
     s2_end_sample: int,
 ) -> np.ndarray:
-    """Short-chorus fallback: play Song 1 fully through chorus, then 1-phrase blend → Song 2.
+    """Short-chorus fallback: play Song 1 fully through chorus, then 2-phrase blend → Song 2.
 
     Used when Song 1 Chorus 1 is shorter than 2 phrases (no room for an
     internal transition). ``trans_start`` should equal ``s1_c1_end``.
 
-    Phase A (1 phrase):
-        Song 1 lows: fade 1→0  (mids+highs already off — taken out at chorus end)
-        Song 2 mids+highs: fade 0→1  (Song 2 lows held off)
-    After Phase A: Song 2 full (all stems, lows come in).
+    Phase A (1 phrase) — lows swap:
+        Song 1 lows:  fade 1→0
+        Song 1 mids:  held at full
+        Song 2 lows:  fade 0→1
+    Phase B (1 phrase) — mids swap:
+        Song 1 mids:  fade 1→0
+        Song 2 lows:  held at full
+        Song 2 mids:  fade 0→1
+    After Phase B: Song 2 full (highs + vocals hard cut in).
     """
     fade_out = np.linspace(1.0, 0.0, phrase_samples, dtype=np.float32)
     fade_in  = np.linspace(0.0, 1.0, phrase_samples, dtype=np.float32)
@@ -314,17 +319,27 @@ def _build_tight_fallback(
 
     s1_pre = y1[:, s1_v1_start : trans_start]
 
-    # Phase A: Song 1 lows fade out; Song 2 mids+highs fade in; Song 2 lows off
+    # Phase A: lows swap; Song 1 mids held at full; no highs from either side
     phase_a = (
-        _sl(low1,  trans_start) * fade_out
-        + _sl(mid2,  s2_start)  * fade_in
-        + _sl(high2, s2_start)  * fade_in
+        _sl(low1, trans_start) * fade_out
+        + _sl(mid1, trans_start)             # S1 mids held
+        + _sl(low2, s2_start)  * fade_in
     )
 
-    s2_full  = low2 + mid2 + high2
-    s2_after = s2_full[:, s2_start + phrase_samples : s2_end_sample]
+    # Phase B: mids swap; Song 2 lows at full; no highs from either side
+    phB_s1 = trans_start + phrase_samples
+    phB_s2 = s2_start    + phrase_samples
+    phase_b = (
+        _sl(mid1, phB_s1) * fade_out
+        + _sl(low2, phB_s2)               # S2 lows at full
+        + _sl(mid2, phB_s2) * fade_in
+    )
 
-    return np.concatenate([s1_pre, phase_a, s2_after], axis=1)
+    # Hard cut: Song 2 full (highs + vocals slam in)
+    s2_full  = low2 + mid2 + high2
+    s2_after = s2_full[:, s2_start + 2 * phrase_samples : s2_end_sample]
+
+    return np.concatenate([s1_pre, phase_a, phase_b, s2_after], axis=1)
 
 
 def _build_loose_transition(
