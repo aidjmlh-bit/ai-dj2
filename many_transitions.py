@@ -38,7 +38,7 @@ _here = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _here)
 sys.path.insert(0, os.path.join(_here, "sections"))
 
-from get_bpm import get_bpm
+from bpm import get_bpm
 from get_chorus import find_chorus
 from get_verse import find_verse
 
