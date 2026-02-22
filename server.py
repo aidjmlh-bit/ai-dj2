@@ -33,7 +33,6 @@ sys.path.insert(0, os.path.join(ROOT, "sections"))
 # ── BPM (librosa — no Essentia) ────────────────────────────────────
 from bpm import get_bpm
 
-# ── Section detection ──────────────────────────────────────────────
 try:
     from get_chorus import find_chorus
     HAS_CHORUS = True
@@ -77,7 +76,6 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 mix_jobs = {}
 
 
-# ── /health ────────────────────────────────────────────────────────
 @app.route('/health')
 def health():
     return jsonify({
@@ -92,7 +90,6 @@ def health():
     })
 
 
-# ── /analyze ───────────────────────────────────────────────────────
 @app.route('/analyze', methods=['POST'])
 def analyze():
     """
@@ -215,7 +212,6 @@ def mix_status(job_id):
     return jsonify(job)
 
 
-# ── /stream ────────────────────────────────────────────────────────
 @app.route('/stream/<folder>/<filename>')
 def stream(folder, filename):
     """Stream a WAV file for browser playback."""
@@ -226,7 +222,6 @@ def stream(folder, filename):
     return send_file(path, mimetype='audio/wav', conditional=True)
 
 
-# ── /download ──────────────────────────────────────────────────────
 @app.route('/download/<filename>')
 def download(filename):
     """Download a finished mix file."""
@@ -236,7 +231,6 @@ def download(filename):
     return send_file(path, as_attachment=True)
 
 
-# ── Main ───────────────────────────────────────────────────────────
 if __name__ == '__main__':
     print("\n" + "="*50)
     print("  DJ AI — SERVER")
